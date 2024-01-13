@@ -1,2 +1,6 @@
 .DS_Store
 prof-explanation-ball-collisions/
+node_modules/
+package-lock.json
+package.json
+tsconfig.json

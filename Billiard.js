@@ -99,7 +99,7 @@ const frameExtrudeSettings = {
 };
 const frameGeometry = new THREE.ExtrudeGeometry(outerFrame, frameExtrudeSettings);
 const frameMesh = new THREE.Mesh(frameGeometry, feltMaterial);
-// scene.add(frameMesh);
+scene.add(frameMesh);
 
 // Table 
 const tableGeo = new THREE.BoxGeometry( tableLength, tableWidth, 0.1 ); 
@@ -108,14 +108,26 @@ tableMesh.position.set(0,0,0.1501)
 frameMesh.add( tableMesh );
 
 // Table legs
+const legWidth = (tableLength - playingSurfaceLength)/2;
+const legHight = .81; // assuming 1 world unit is equal to 1m
 
+const xCoorLeg = tableLength/2 - legWidth;
+const yCoorLeg = tableWidth/2 - legWidth;
+const zCoorLeg = 0.2+ legHight/2;
 
+const legPositions = [new THREE.Vector3(xCoorLeg, yCoorLeg, zCoorLeg),
+  new THREE.Vector3(xCoorLeg, -yCoorLeg, zCoorLeg),
+  new THREE.Vector3(-xCoorLeg, -yCoorLeg, zCoorLeg), 
+  new THREE.Vector3(-xCoorLeg, yCoorLeg, zCoorLeg)]
 
-// for(let i; i<4; i++){
-//   const legGeo = new THREE.BoxGeometry(0.38, )
-// }
+for(let i = 0; i<4; i++){
+  const legGeo = new THREE.BoxGeometry(legWidth, legWidth, legHight);
+  const legMesh = new THREE.Mesh(legGeo, woodMaterial);
+  legMesh.position.copy(legPositions[i]);
+  frameMesh.add(legMesh);
 
-// frameMesh.rotation.x = Math.PI / 2;
+}
+frameMesh.rotation.x = Math.PI / 2;
 
 
 // Add balls
