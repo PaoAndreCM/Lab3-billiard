@@ -165,7 +165,7 @@ function isOverlapping(newPosition) {
 let balls = []
 window.balls = balls;
 
-for (let i = 0; i < 8; i++) {
+function generateBall(i){
   const ballGeo = new THREE.SphereGeometry(ballRadius, 32, 16);
   const ballNum = 8 + i;
   const strBallNum = ballNum.toString();
@@ -188,15 +188,68 @@ for (let i = 0; i < 8; i++) {
   ballMesh.matrixAutoUpdate = false;
 }
 
+let ballSpeeds = [];
+window.ballSpeeds = ballSpeeds;
+const multiplier = 5;
+function generateBallSpeed(){
+  let ballSpeed = new THREE.Vector3(multiplier*Math.random(), 0, multiplier*Math.random());
+  ballSpeeds.push(ballSpeed);
+}
+
+for (let i = 0; i < 8; i++) {
+  generateBall(i);
+  generateBallSpeed();
+}
 
 
 
+
+
+const planeNormal = new THREE.Vector3(0,1,0);
 
 // * Render loop
+const computerClock = new THREE.Clock();
 const controls = new TrackballControls( camera, renderer.domElement );
+// const om = 1;
 
 function render() {
   requestAnimationFrame(render);
+
+  // Reflection at the invisible walls
+// balls.forEach((ball, index) => {
+//     if(ball.position.x> planeX/2) {
+//       ballSpeeds[index].x = - Math.abs(ballSpeeds[index].x);
+//     }
+//     if(ball.position.z > planeZ/2) {
+//       ballSpeeds[index].z = - Math.abs(ballSpeeds[index].z);
+//     }
+// });
+
+  // Motion
+
+  const h = computerClock.getDelta();
+
+  balls.forEach((ball, index) => {
+    ball.position.add(ballSpeeds[index].clone().multiplyScalar(h));
+    const om = ballSpeeds[index].length() / ballRadius;
+    const axis = planeNormal.clone().cross(ballSpeeds[index]).normalize();
+  
+    const dR = new THREE.Matrix4().makeRotationAxis(axis, om*h);
+    ball.matrix.premultiply(dR);
+    ball.matrix.setPosition(ball.position);
+  });  
+
+
+
+    // balls[0].position.add(ballSpeeds[0].clone().multiplyScalar(h));
+    // const om = ballSpeeds[0].length() / ballRadius;
+    // const axis = planeNormal.clone().cross(ballSpeeds[0]).normalize();
+  
+    // const dR = new THREE.Matrix4().makeRotationAxis(axis, om*h);
+    // balls[0].matrix.premultiply(dR);
+    // balls[0].matrix.setPosition(balls[0].position);
+
+  
 
 
   light.position.copy(camera.position.clone());
