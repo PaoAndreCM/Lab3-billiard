@@ -22,7 +22,7 @@ window.addEventListener("resize", function() {
   camera.updateProjectionMatrix();
 });
 
-camera.position.set(4, 1, -5);
+camera.position.set(.8, 4.7, -2);
 camera.lookAt(scene.position);
 
 // Add light sources
@@ -40,6 +40,8 @@ const material = new THREE.MeshBasicMaterial({wireframe:false,
   side:THREE.DoubleSide})
   material.transparent = true;
   material.opacity = 0.5;
+
+window.camera = camera;
 
 // * Add your billiard simulation here
 
@@ -99,11 +101,13 @@ const frameExtrudeSettings = {
 };
 const frameGeometry = new THREE.ExtrudeGeometry(outerFrame, frameExtrudeSettings);
 const frameMesh = new THREE.Mesh(frameGeometry, feltMaterial);
+// const frameMesh = new THREE.Mesh(frameGeometry, material);
 scene.add(frameMesh);
 
-// Table 
+// Tabletop 
 const tableGeo = new THREE.BoxGeometry( tableLength, tableWidth, 0.1 ); 
 const tableMesh = new THREE.Mesh( tableGeo, feltMaterial ); 
+// const tableMesh = new THREE.Mesh( tableGeo, material ); 
 tableMesh.position.set(0,0,0.1501)
 frameMesh.add( tableMesh );
 
@@ -123,14 +127,68 @@ const legPositions = [new THREE.Vector3(xCoorLeg, yCoorLeg, zCoorLeg),
 for(let i = 0; i<4; i++){
   const legGeo = new THREE.BoxGeometry(legWidth, legWidth, legHight);
   const legMesh = new THREE.Mesh(legGeo, woodMaterial);
+  // const legMesh = new THREE.Mesh(legGeo, material);
   legMesh.position.copy(legPositions[i]);
   frameMesh.add(legMesh);
 
 }
 frameMesh.rotation.x = Math.PI / 2;
 
-
 // Add balls
+function getRandomPosition() {
+  const MAX_X = playingSurfaceLength / 2 - minDistance;
+  const MIN_X = -playingSurfaceLength / 2 + minDistance;
+  const MAX_Z = playingSurfaceWidth / 2 - minDistance;
+  const MIN_Z = -playingSurfaceWidth / 2 + minDistance;
+  const x = Math.random() * (MAX_X - MIN_X) + MIN_X;
+  const y = -0.043;
+  const z = Math.random() * (MAX_Z - MIN_Z) + MIN_Z;
+  return new THREE.Vector3(x, y, z);
+}
+
+const ballRadius = 0.05715; // 57.15 mm
+const minDistance = 2 * ballRadius; // Minimum distance to avoid overlap
+
+let ballPositions = [];
+window.ballPositions = ballPositions;
+
+function isOverlapping(newPosition) {
+  for (const position of ballPositions) {
+    const distance = newPosition.distanceTo(position);
+    if (distance < minDistance) {
+      return true; // Overlapping
+    }
+  }
+  return false; // Not overlapping
+}
+
+let balls = []
+window.balls = balls;
+
+for (let i = 0; i < 8; i++) {
+  const ballGeo = new THREE.SphereGeometry(ballRadius, 32, 16);
+  const ballNum = 8 + i;
+  const strBallNum = ballNum.toString();
+  const path = 'PoolBallSkins/' + 'Ball' + strBallNum + '.jpg'
+  const ballTexture = new THREE.TextureLoader().load(path);
+  const ballMaterial = new THREE.MeshStandardMaterial({
+    map: ballTexture,
+    roughness: 0.1,
+    metalness: 0.3,
+  });
+  const ballMesh = new THREE.Mesh(ballGeo, ballMaterial);
+  do {
+    ballMesh.position.copy(getRandomPosition());
+  } while 
+    ( isOverlapping(ballMesh.position) );
+  ballPositions.push(ballMesh.position);
+  balls.push(ballMesh);
+  scene.add(ballMesh);
+  ballMesh.updateMatrix();
+  ballMesh.matrixAutoUpdate = false;
+}
+
+
 
 
 
