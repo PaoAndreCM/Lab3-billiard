@@ -135,11 +135,8 @@ for(let i = 0; i<4; i++){
 frameMesh.rotation.x = Math.PI / 2;
 
 // Add balls
+
 function getRandomPosition() {
-  const MAX_X = playingSurfaceLength / 2 - minDistance;
-  const MIN_X = -playingSurfaceLength / 2 + minDistance;
-  const MAX_Z = playingSurfaceWidth / 2 - minDistance;
-  const MIN_Z = -playingSurfaceWidth / 2 + minDistance;
   const x = Math.random() * (MAX_X - MIN_X) + MIN_X;
   const y = -0.043;
   const z = Math.random() * (MAX_Z - MIN_Z) + MIN_Z;
@@ -148,6 +145,10 @@ function getRandomPosition() {
 
 const ballRadius = 0.05715; // 57.15 mm
 const minDistance = 2 * ballRadius; // Minimum distance to avoid overlap
+const MAX_X = playingSurfaceLength / 2 - minDistance;
+const MIN_X = -playingSurfaceLength / 2 + minDistance;
+const MAX_Z = playingSurfaceWidth / 2 - minDistance;
+const MIN_Z = -playingSurfaceWidth / 2 + minDistance;
 
 let ballPositions = [];
 window.ballPositions = ballPositions;
@@ -190,7 +191,7 @@ function generateBall(i){
 
 let ballSpeeds = [];
 window.ballSpeeds = ballSpeeds;
-const multiplier = 5;
+const multiplier = 1;
 function generateBallSpeed(){
   let ballSpeed = new THREE.Vector3(multiplier*Math.random(), 0, multiplier*Math.random());
   ballSpeeds.push(ballSpeed);
@@ -200,10 +201,6 @@ for (let i = 0; i < 8; i++) {
   generateBall(i);
   generateBallSpeed();
 }
-
-
-
-
 
 const planeNormal = new THREE.Vector3(0,1,0);
 
@@ -216,20 +213,29 @@ function render() {
   requestAnimationFrame(render);
 
   // Reflection at the invisible walls
-// balls.forEach((ball, index) => {
-//     if(ball.position.x> planeX/2) {
-//       ballSpeeds[index].x = - Math.abs(ballSpeeds[index].x);
-//     }
-//     if(ball.position.z > planeZ/2) {
-//       ballSpeeds[index].z = - Math.abs(ballSpeeds[index].z);
-//     }
-// });
+  balls.forEach((ball, index) => {
+      if(ball.position.x > MAX_X + ballRadius) {
+        ballSpeeds[index].x = - Math.abs(ballSpeeds[index].x);
+      }
+      if(ball.position.z > MAX_Z + ballRadius) {
+        ballSpeeds[index].z = - Math.abs(ballSpeeds[index].z);
+      }
+      if(ball.position.x < MIN_X - ballRadius) {
+        ballSpeeds[index].x = Math.abs(ballSpeeds[index].x);
+      }
+      if(ball.position.z < MIN_Z - ballRadius) {
+        ballSpeeds[index].z = Math.abs(ballSpeeds[index].z);
+      }
+  });
 
   // Motion
-
   const h = computerClock.getDelta();
+  const t = computerClock.getElapsedTime();
+  const decayFactor = 0.8;
 
   balls.forEach((ball, index) => {
+    const decay = Math.pow(decayFactor, h * t);
+    ballSpeeds[index].multiplyScalar(decay);
     ball.position.add(ballSpeeds[index].clone().multiplyScalar(h));
     const om = ballSpeeds[index].length() / ballRadius;
     const axis = planeNormal.clone().cross(ballSpeeds[index]).normalize();
@@ -237,20 +243,40 @@ function render() {
     const dR = new THREE.Matrix4().makeRotationAxis(axis, om*h);
     ball.matrix.premultiply(dR);
     ball.matrix.setPosition(ball.position);
-  });  
+  }); 
 
+  // Elastic collision between balls
+  for (let i = 0; i < balls.length; i++) {
+    for (let j = i + 1; j < balls.length; j++) {
+      const ball1 = balls[i];
+      const ball2 = balls[j];
 
+      const dist = ball1.position.clone().sub(ball2.position);
+      const minDistance = 2 * ballRadius;
 
-    // balls[0].position.add(ballSpeeds[0].clone().multiplyScalar(h));
-    // const om = ballSpeeds[0].length() / ballRadius;
-    // const axis = planeNormal.clone().cross(ballSpeeds[0]).normalize();
-  
-    // const dR = new THREE.Matrix4().makeRotationAxis(axis, om*h);
-    // balls[0].matrix.premultiply(dR);
-    // balls[0].matrix.setPosition(balls[0].position);
+      if (dist.lengthSq() < 4 * ballRadius * ballRadius) {
+        // Collision detected, calculate new velocities
 
-  
+        const u1 = ballSpeeds[i].clone();
+        const u2 = ballSpeeds[j].clone();
 
+        const diffU = u1.clone().sub(u2);
+        const factor = dist.dot(diffU) / dist.lengthSq();
+
+        // Update velocities after collision
+        ballSpeeds[i].sub(dist.clone().multiplyScalar(factor));
+        ballSpeeds[j].add(dist.clone().multiplyScalar(factor));
+
+        // Adjust positions to avoid overlap (optional depending on your simulation requirements)
+        const pushDistance = (minDistance - dist.length()) / 2;
+        const pushDirection = dist.clone().normalize().multiplyScalar(pushDistance);
+
+        // Move balls apart to avoid overlap
+        ball1.position.add(pushDirection);
+        ball2.position.sub(pushDirection);
+      }
+    }
+  }
 
   light.position.copy(camera.position.clone());
   controls.update();
