@@ -10,9 +10,10 @@ const renderer = new THREE.WebGLRenderer({canvas,
                                           antialias: true});
 renderer.setClearColor('#ffffff');    // set background color
 renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 // Create a new Three.js scene with camera and light
 const scene = new THREE.Scene();
-scene.add(new THREE.AxesHelper());
 const camera = new THREE.PerspectiveCamera( 45, canvas.width / canvas.height,
                                             0.1, 1000 );
 
@@ -22,26 +23,23 @@ window.addEventListener("resize", function() {
   camera.updateProjectionMatrix();
 });
 
-camera.position.set(.8, 4.7, -2);
+camera.position.set(-11.16, 4.57, -3.8);
 camera.lookAt(scene.position);
 
-// Add light sources
-const light = new THREE.DirectionalLight();
-light.position.set(0, 8, 2);
-scene.add(light);
+const light = new THREE.AmbientLight( 0x404040 ); // soft white light
+scene.add( light );
 
-// remove this in the final version1
-scene.add(new THREE.AxesHelper());
-const wireframeMaterial = new THREE.MeshBasicMaterial({wireframe:true,
-  color:0x000000,
-  side:THREE.DoubleSide});
-const material = new THREE.MeshBasicMaterial({wireframe:false,
-  color:0x505050,
-  side:THREE.DoubleSide})
-  material.transparent = true;
-  material.opacity = 0.5;
+//Create a SpotLight and turn on shadows for the light
+const spotlight = new THREE.SpotLight( 0xffffff );
+spotlight.castShadow = true; // default false
+// spotlight.position.set(0, 1, 0.025);
+scene.add( spotlight );
 
-window.camera = camera;
+const lightPosition = new THREE.Vector3(0,3.5,1.5);
+spotlight.position.copy(lightPosition);
+spotlight.penumbra = 0.2;
+spotlight.angle = -Math.PI/3;
+spotlight.intensity = 20;
 
 // * Add your billiard simulation here
 
@@ -68,6 +66,7 @@ const baizeNormalMap = new THREE.TextureLoader().load('PoolBallSkins/baize-map.j
 const baizeMaterial = new THREE.MeshStandardMaterial({
   map: baizeTexture,
   normalMap: baizeNormalMap,
+  side: THREE.DoubleSide,
   roughness: 0.8,
   metalness: 0.2
 });
@@ -96,20 +95,23 @@ innerFrame.lineTo(-playingSurfaceLength/2, -playingSurfaceWidth/2);
 outerFrame.holes.push(innerFrame);
 
 const frameExtrudeSettings = {
-	depth: 0.1,
-	bevelEnabled: false,
+  depth: 0.1,
+  bevelEnabled: false,
 };
 const frameGeometry = new THREE.ExtrudeGeometry(outerFrame, frameExtrudeSettings);
 const frameMesh = new THREE.Mesh(frameGeometry, feltMaterial);
+// frameMesh.castShadow = true;
+// frameMesh.receiveShadow = true;
 // const frameMesh = new THREE.Mesh(frameGeometry, material);
 scene.add(frameMesh);
-window.frameMesh = frameMesh;
 
 // Tabletop 
 const tableGeo = new THREE.BoxGeometry( tableLength, tableWidth, 0.1 ); 
 const tableMesh = new THREE.Mesh( tableGeo, feltMaterial ); 
 // const tableMesh = new THREE.Mesh( tableGeo, material ); 
-tableMesh.position.set(0,0,0.1501)
+tableMesh.position.set(0,0,0.1501);
+tableMesh.castShadow = true; //default is false
+tableMesh.receiveShadow = true; //default
 frameMesh.add( tableMesh );
 
 // Table legs
@@ -130,6 +132,7 @@ for(let i = 0; i<4; i++){
   const legMesh = new THREE.Mesh(legGeo, woodMaterial);
   // const legMesh = new THREE.Mesh(legGeo, material);
   legMesh.position.copy(legPositions[i]);
+  legMesh.castShadow = true;
   frameMesh.add(legMesh);
 
 }
@@ -152,7 +155,6 @@ const MAX_Z = playingSurfaceWidth / 2 - minDistance;
 const MIN_Z = -playingSurfaceWidth / 2 + minDistance;
 
 let ballPositions = [];
-window.ballPositions = ballPositions;
 
 function isOverlapping(newPosition) {
   for (const position of ballPositions) {
@@ -165,7 +167,6 @@ function isOverlapping(newPosition) {
 }
 
 let balls = []
-window.balls = balls;
 
 function generateBall(i){
   const ballGeo = new THREE.SphereGeometry(ballRadius, 32, 16);
@@ -185,16 +186,16 @@ function generateBall(i){
     ( isOverlapping(ballMesh.position) );
   ballPositions.push(ballMesh.position);
   balls.push(ballMesh);
+  ballMesh.castShadow = true;
   scene.add(ballMesh);
   ballMesh.updateMatrix();
   ballMesh.matrixAutoUpdate = false;
 }
 
 let ballSpeeds = [];
-window.ballSpeeds = ballSpeeds;
 const multiplier = 1;
 function generateBallSpeed(){
-  let ballSpeed = new THREE.Vector3(multiplier*Math.random(), 0, multiplier*Math.random());
+let ballSpeed = new THREE.Vector3((Math.random() * 2 - 1) * multiplier, 0, (Math.random() * 2 - 1) * multiplier); // to generate both positive and negative so balls don't allways tend to go in the same direction
   ballSpeeds.push(ballSpeed);
 }
 
@@ -205,16 +206,56 @@ for (let i = 0; i < 8; i++) {
 
 // floor
 
-const floorSize = 4;
-const floorMesh = new THREE.Mesh(new THREE.PlaneGeometry(floorSize, floorSize), woodMaterial);
+const floorSize = 5;
+const floorline = -legHight - 0.2
+const planeGeo = new THREE.PlaneGeometry(floorSize, floorSize);
+const floorMesh = new THREE.Mesh(planeGeo, woodMaterial);
 floorMesh.rotation.x = Math.PI/2;
-floorMesh.position.y = -legHight - 0.2;
+floorMesh.position.y = floorline;
 floorMesh.receiveShadow = true;
 scene.add(floorMesh);
 
-const planeNormal = new THREE.Vector3(0,1,0);
+// ceiling
+
+const ceilingMesh = new THREE.Mesh(planeGeo, new THREE.MeshStandardMaterial({side:THREE.DoubleSide, color: 'black'}));
+ceilingMesh.rotation.x = -Math.PI/2;
+ceilingMesh.position.y = 3.99;
+scene.add(ceilingMesh);
+
+// walls
+// const wallMaterial = new THREE.MeshStandardMaterial({map:})
+const wall1 = new THREE.Mesh(planeGeo, baizeMaterial);
+
+
+wall1.position.y = floorline+floorSize/2;
+scene.add(wall1);
+const wall2 = wall1.clone();
+wall1.position.x = floorSize/2;
+wall1.rotation.y = -Math.PI/2;
+wall2.position.z = floorSize/2
+scene.add(wall2);
+
+
+// spotlight
+
+const lightBulb = new THREE.Mesh(new THREE.SphereGeometry(ballRadius*2, 32,16), new THREE.MeshBasicMaterial({color: 'yellow'}));
+lightBulb.position.copy(lightPosition);
+scene.add(lightBulb);
+
+// Cord
+const points = [
+  lightPosition,
+  new THREE.Vector3(0,4,1.5),
+];
+
+const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
+const lineMaterial = new THREE.LineBasicMaterial({ color: 'white' });
+const line = new THREE.LineSegments(lineGeometry, lineMaterial);
+scene.add(line);
+
 
 // * Render loop
+const planeNormal = new THREE.Vector3(0,1,0);
 const computerClock = new THREE.Clock();
 const controls = new TrackballControls( camera, renderer.domElement );
 
@@ -297,8 +338,8 @@ balls.forEach((ball, index) => {
 });
 
 
-  light.position.copy(camera.position.clone());
   controls.update();
   renderer.render(scene, camera);
 }
 render();
+
