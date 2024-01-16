@@ -203,6 +203,15 @@ for (let i = 0; i < 8; i++) {
   generateBallSpeed();
 }
 
+// floor
+
+const floorSize = 4;
+const floorMesh = new THREE.Mesh(new THREE.PlaneGeometry(floorSize, floorSize), woodMaterial);
+floorMesh.rotation.x = Math.PI/2;
+floorMesh.position.y = -legHight - 0.2;
+floorMesh.receiveShadow = true;
+scene.add(floorMesh);
+
 const planeNormal = new THREE.Vector3(0,1,0);
 
 // * Render loop
